@@ -1,21 +1,18 @@
+// SignifyApplication.kt
 package com.signify.app
 
 import android.app.Application
-import androidx.room.Room
-import com.signify.app.data.local.AppDatabase
+import com.signify.app.di.AppContainer
 
 class SignifyApplication : Application() {
-    companion object {
-        lateinit var database: AppDatabase
-            private set
-    }
+
+    /** Our one‐stop shop for DAOs, Repos, etc. */
+    lateinit var container: AppContainer
+        private set
 
     override fun onCreate() {
         super.onCreate()
-        database = Room.databaseBuilder(
-            applicationContext,
-            AppDatabase::class.java,
-            "signify_db"
-        ).build()
+        // Initialize your container here
+        container = AppContainer(this)
     }
 }

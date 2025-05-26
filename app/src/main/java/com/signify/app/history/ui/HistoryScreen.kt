@@ -1,42 +1,28 @@
-// File: app/src/main/java/com/signify/app/history/HistoryScreen.kt
-package com.signify.app.history
+// File: app/src/main/java/com/signify/app/history/ui/HistoryScreen.kt
+package com.signify.app.history.ui
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.LocalTextStyle
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Text
-import androidx.compose.material3.TopAppBar
-import androidx.compose.material3.TopAppBarDefaults
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.viewmodel.compose.viewModel
+import com.signify.app.di.AppContainer
+import com.signify.app.di.SignifyViewModelFactory
+import com.signify.app.history.viewmodel.HistoryViewModel
 import com.signify.app.ui.theme.Cream
 import com.signify.app.ui.theme.Navy
 import com.signify.app.ui.theme.NavyVariant
+import java.text.SimpleDateFormat
+import java.util.*
 
-data class HistoryEntry(
+data class HistoryEntryUI(
     val input: String,
     val output: String,
     val timestamp: String
@@ -44,22 +30,39 @@ data class HistoryEntry(
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun HistoryScreen(
+fun HistoryScreen(container: AppContainer) {
+    // 1) ViewModel
+    val factory = remember {
+        SignifyViewModelFactory(
+            container.lessonRepository,
+            container.historyRepository,
+            container.translatorRepository
+        )
+    }
+    val vm: HistoryViewModel = viewModel(factory = factory)
 
-    entries: List<HistoryEntry> = sampleHistory()
-) {
+    // 2) Collect and map
+    val domainHistory by vm.history.collectAsState(initial = emptyList())
+    val formatter = remember { SimpleDateFormat("yyyy-MM-dd HH:mm", Locale.getDefault()) }
+    val entries = domainHistory.map { h ->
+        HistoryEntryUI(
+            input     = h.inputText,
+            output    = h.outputText,
+            timestamp = formatter.format(Date(h.timestamp))
+        )
+    }
+
     var filter by remember { mutableStateOf("") }
     val filtered = entries.filter {
         it.input.contains(filter, ignoreCase = true) ||
                 it.output.contains(filter, ignoreCase = true)
     }
 
+    // 3) UI
     Scaffold(
         topBar = {
             TopAppBar(
                 title = { Text("History", color = Cream) },
-                navigationIcon = {
-                },
                 colors = TopAppBarDefaults.topAppBarColors(containerColor = Navy)
             )
         },
@@ -98,9 +101,9 @@ fun HistoryScreen(
                 ) {
                     items(filtered) { entry ->
                         Card(
-                            modifier = Modifier
+                            Modifier
                                 .fillMaxWidth()
-                                .clickable { /* maybe re-run this entry */ },
+                                .clickable { /* replay entry? */ },
                             colors = CardDefaults.cardColors(containerColor = NavyVariant)
                         ) {
                             Column(Modifier.padding(12.dp)) {
@@ -110,17 +113,9 @@ fun HistoryScreen(
                                     color = Cream.copy(alpha = 0.7f)
                                 )
                                 Spacer(Modifier.height(4.dp))
-                                Text(
-                                    text = "In: ${entry.input}",
-                                    style = MaterialTheme.typography.bodyLarge,
-                                    color = Cream
-                                )
+                                Text("In: ${entry.input}", style = MaterialTheme.typography.bodyLarge, color = Cream)
                                 Spacer(Modifier.height(2.dp))
-                                Text(
-                                    text = "Out: ${entry.output}",
-                                    style = MaterialTheme.typography.bodyLarge,
-                                    color = Cream
-                                )
+                                Text("Out: ${entry.output}", style = MaterialTheme.typography.bodyLarge, color = Cream)
                             }
                         }
                     }
@@ -129,12 +124,3 @@ fun HistoryScreen(
         }
     }
 }
-
-/** Sample dummy data – replace with your Room/DB-backed list */
-private fun sampleHistory() = listOf(
-    HistoryEntry("Hello", "👋 Hello", "2025-04-28 10:15"),
-    HistoryEntry("How are you?", "🤟😊", "2025-04-28 10:17"),
-    HistoryEntry("Thank you", "🙏 Thank you", "2025-04-28 10:20"),
-    HistoryEntry("Yes", "👍 Yes", "2025-04-28 10:25"),
-    HistoryEntry("No", "👎 No", "2025-04-28 10:30")
-)

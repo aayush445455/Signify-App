@@ -1,5 +1,5 @@
 // File: app/src/main/java/com/signify/app/auth/LoginScreen.kt
-package com.signify.app.auth
+package com.signify.app.auth.ui
 
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background

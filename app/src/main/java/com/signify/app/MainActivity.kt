@@ -7,13 +7,7 @@ import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.ContactMail
-import androidx.compose.material.icons.filled.GTranslate
-import androidx.compose.material.icons.filled.History
-import androidx.compose.material.icons.filled.Home
-import androidx.compose.material.icons.filled.Person
-import androidx.compose.material.icons.filled.PlayArrow
-import androidx.compose.material.icons.filled.Settings
+import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.runtime.getValue
@@ -23,16 +17,16 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
-import com.signify.app.auth.LoginScreen
-import com.signify.app.auth.RegisterScreen
+import com.signify.app.auth.ui.LoginScreen
+import com.signify.app.auth.ui.RegisterScreen
 import com.signify.app.contact.ContactUsScreen
-import com.signify.app.history.HistoryScreen
+import com.signify.app.history.ui.HistoryScreen
 import com.signify.app.home.HomeScreen
-import com.signify.app.learn.LessonsScreen
+import com.signify.app.learn.ui.LessonsScreen
 import com.signify.app.navigation.Screen
 import com.signify.app.profile.ProfileScreen
 import com.signify.app.settings.SettingsScreen
-import com.signify.app.translator.TranslatorScreen
+import com.signify.app.translator.ui.TranslatorScreen
 import com.signify.app.ui.components.SlidingPillNavigationBar
 import com.signify.app.ui.theme.SignifyTheme
 
@@ -43,22 +37,23 @@ class MainActivity : ComponentActivity() {
 
         setContent {
             SignifyTheme {
+                // 1) Grab your DI container
+                val container = (application as SignifyApplication).container
+
+                // 2) Setup navigation
                 val navController = rememberNavController()
                 val backStack by navController.currentBackStackEntryAsState()
                 val route = backStack?.destination?.route ?: Screen.Login.route
 
-                // **Seven** tabs: 3 left, Home center, 3 right
                 val tabs = listOf(
-                    Screen.Lessons,     // index 0
-                    Screen.History,     // index 1
-                    Screen.Translator,  // index 2
-                    Screen.Home,        // index 3 (center)
-                    Screen.Settings,    // index 4
-                    Screen.ContactUs,   // index 5
-                    Screen.Profile      // index 6
+                    Screen.Lessons,
+                    Screen.History,
+                    Screen.Translator,
+                    Screen.Home,
+                    Screen.Settings,
+                    Screen.ContactUs,
+                    Screen.Profile
                 )
-
-                // Find selected index (default to center)
                 val selectedIndex = tabs.indexOfFirst { it.route == route }
                     .takeIf { it >= 0 } ?: 3
 
@@ -78,19 +73,19 @@ class MainActivity : ComponentActivity() {
                                 selectedIndex = selectedIndex,
                                 onSelected = { idx ->
                                     navController.navigate(tabs[idx].route) {
-                                        popUpTo(Screen.Home.route) { saveState      = true }
-                                        launchSingleTop                       = true
-                                        restoreState                          = true
+                                        popUpTo(Screen.Home.route) { saveState = true }
+                                        launchSingleTop = true
+                                        restoreState = true
                                     }
                                 },
-                                barColor       = MaterialTheme.colorScheme.surface,
-                                pillColor      = MaterialTheme.colorScheme.primary,
-                                iconTintOn     = MaterialTheme.colorScheme.onPrimary,
-                                iconTintOff    = MaterialTheme.colorScheme.onSurfaceVariant,
-                                barHeight      = 56.dp,
-                                pillHeight     = 4.dp,
-                                pillWidth      = 36.dp,
-                                iconSize       = 24.dp
+                                barColor    = MaterialTheme.colorScheme.surface,
+                                pillColor   = MaterialTheme.colorScheme.primary,
+                                iconTintOn  = MaterialTheme.colorScheme.onPrimary,
+                                iconTintOff = MaterialTheme.colorScheme.onSurfaceVariant,
+                                barHeight   = 56.dp,
+                                pillHeight  = 4.dp,
+                                pillWidth   = 36.dp,
+                                iconSize    = 24.dp
                             )
                         }
                     }
@@ -103,7 +98,7 @@ class MainActivity : ComponentActivity() {
                         // Auth
                         composable(Screen.Login.route) {
                             LoginScreen(
-                                onLoginSuccess       = {
+                                onLoginSuccess = {
                                     navController.navigate(Screen.Home.route) {
                                         popUpTo(Screen.Login.route) { inclusive = true }
                                     }
@@ -120,13 +115,22 @@ class MainActivity : ComponentActivity() {
                                         popUpTo(Screen.Register.route) { inclusive = true }
                                     }
                                 },
-                                onBackToLogin     = { navController.popBackStack() }
+                                onBackToLogin = { navController.popBackStack() }
                             )
                         }
-                        // Core tabs
-                        composable(Screen.Lessons.route)    { LessonsScreen()    }
-                        composable(Screen.History.route)    { HistoryScreen()    }
-                        composable(Screen.Translator.route) { TranslatorScreen() }
+
+                        // Core feature tabs – now passing container
+                        composable(Screen.Lessons.route) {
+                            LessonsScreen(container)
+                        }
+                        composable(Screen.History.route) {
+                            HistoryScreen(container)
+                        }
+                        composable(Screen.Translator.route) {
+                            TranslatorScreen(container)
+                        }
+
+                        // Other tabs
                         composable(Screen.Home.route) {
                             HomeScreen(
                                 currentRoute = route,
@@ -137,8 +141,12 @@ class MainActivity : ComponentActivity() {
                                 }
                             )
                         }
-                        composable(Screen.Settings.route)   { SettingsScreen()  }
-                        composable(Screen.ContactUs.route)  {  ContactUsScreen() }
+                        composable(Screen.Settings.route) {
+                            SettingsScreen()
+                        }
+                        composable(Screen.ContactUs.route) {
+                            ContactUsScreen()
+                        }
                         composable(Screen.Profile.route) {
                             ProfileScreen(
                                 onNavigate = { dest ->

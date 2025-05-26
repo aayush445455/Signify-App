@@ -44,7 +44,7 @@ androidx-compose-material-iconsExtended = { group = "androidx.compose.material",
 
 material3 = { module = "androidx.compose.material3:material3", version.ref = "material3" }
 
-
+#room
 androidx-room-compiler = { module = "androidx.room:room-compiler", version.ref = "roomRuntime" }
 
 [plugins]
