@@ -3,6 +3,9 @@ plugins {
     alias(libs.plugins.kotlin.android)
     alias(libs.plugins.kotlin.compose)
     alias(libs.plugins.kotlinAndroidKsp)
+    // Add the Google services Gradle plugin
+    alias(libs.plugins.google.services)
+
 }
 
 android {
@@ -76,6 +79,16 @@ dependencies {
     implementation(libs.androidx.camera.lifecycle)
     implementation(libs.androidx.camera.view)
 
+// Import the Firebase BoM
+    // import the BOM (which brings in correct versions for all Firebase components)
+    implementation(platform(libs.firebase.bom))
+    // reference the KTX libraries _without_ specifying a version
+    implementation(libs.firebase.auth.ktx)
+    implementation(libs.firebase.firestore.ktx)
+
+
+    // your Coroutines Play Services helper
+    implementation(libs.coroutines.play.services)
 
 // Optional: ML Kit or MediaPipe later (not now)
 

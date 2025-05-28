@@ -8,15 +8,11 @@ import androidx.activity.enableEdgeToEdge
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Scaffold
+import androidx.compose.material3.*
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
-import androidx.navigation.compose.NavHost
-import androidx.navigation.compose.composable
-import androidx.navigation.compose.currentBackStackEntryAsState
-import androidx.navigation.compose.rememberNavController
+import androidx.navigation.compose.*
 import com.signify.app.auth.ui.LoginScreen
 import com.signify.app.auth.ui.RegisterScreen
 import com.signify.app.contact.ContactUsScreen
@@ -35,12 +31,11 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
 
+        // 1) Fetch your one-and-only DI container
+        val container = (application as SignifyApplication).container
+
         setContent {
             SignifyTheme {
-                // 1) Grab your DI container
-                val container = (application as SignifyApplication).container
-
-                // 2) Setup navigation
                 val navController = rememberNavController()
                 val backStack by navController.currentBackStackEntryAsState()
                 val route = backStack?.destination?.route ?: Screen.Login.route
@@ -54,8 +49,7 @@ class MainActivity : ComponentActivity() {
                     Screen.ContactUs,
                     Screen.Profile
                 )
-                val selectedIndex = tabs.indexOfFirst { it.route == route }
-                    .takeIf { it >= 0 } ?: 3
+                val selectedIndex = tabs.indexOfFirst { it.route == route }.let { if (it<0) 3 else it }
 
                 Scaffold(
                     bottomBar = {
@@ -71,11 +65,11 @@ class MainActivity : ComponentActivity() {
                                     "Profile"   to Icons.Default.Person
                                 ),
                                 selectedIndex = selectedIndex,
-                                onSelected = { idx ->
+                                onSelected    = { idx ->
                                     navController.navigate(tabs[idx].route) {
                                         popUpTo(Screen.Home.route) { saveState = true }
                                         launchSingleTop = true
-                                        restoreState = true
+                                        restoreState    = true
                                     }
                                 },
                                 barColor    = MaterialTheme.colorScheme.surface,
@@ -95,10 +89,10 @@ class MainActivity : ComponentActivity() {
                         startDestination = Screen.Login.route,
                         modifier         = Modifier.padding(innerPadding)
                     ) {
-                        // Auth
                         composable(Screen.Login.route) {
                             LoginScreen(
-                                onLoginSuccess = {
+                                container            = container,
+                                onLoginSuccess       = {
                                     navController.navigate(Screen.Home.route) {
                                         popUpTo(Screen.Login.route) { inclusive = true }
                                     }
@@ -110,27 +104,20 @@ class MainActivity : ComponentActivity() {
                         }
                         composable(Screen.Register.route) {
                             RegisterScreen(
+                                container         = container,
                                 onRegisterSuccess = {
                                     navController.navigate(Screen.Home.route) {
                                         popUpTo(Screen.Register.route) { inclusive = true }
                                     }
                                 },
-                                onBackToLogin = { navController.popBackStack() }
+                                onBackToLogin     = { navController.popBackStack() }
                             )
                         }
 
-                        // Core feature tabs – now passing container
-                        composable(Screen.Lessons.route) {
-                            LessonsScreen(container)
-                        }
-                        composable(Screen.History.route) {
-                            HistoryScreen(container)
-                        }
-                        composable(Screen.Translator.route) {
-                            TranslatorScreen(container)
-                        }
+                        composable(Screen.Lessons.route)    { LessonsScreen(container)    }
+                        composable(Screen.History.route)    { HistoryScreen(container)    }
+                        composable(Screen.Translator.route) { TranslatorScreen(container) }
 
-                        // Other tabs
                         composable(Screen.Home.route) {
                             HomeScreen(
                                 currentRoute = route,
@@ -141,18 +128,14 @@ class MainActivity : ComponentActivity() {
                                 }
                             )
                         }
-                        composable(Screen.Settings.route) {
-                            SettingsScreen()
-                        }
-                        composable(Screen.ContactUs.route) {
-                            ContactUsScreen()
-                        }
+                        composable(Screen.Settings.route)  { SettingsScreen()  }
+                        composable(Screen.ContactUs.route) { ContactUsScreen() }
                         composable(Screen.Profile.route) {
                             ProfileScreen(
                                 onNavigate = { dest ->
                                     navController.navigate(dest) { launchSingleTop = true }
                                 },
-                                onLogout = {
+                                onLogout   = {
                                     navController.navigate(Screen.Login.route) {
                                         popUpTo(Screen.Home.route) { inclusive = true }
                                     }

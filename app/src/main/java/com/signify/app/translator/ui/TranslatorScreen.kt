@@ -8,28 +8,10 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.signify.app.di.AppContainer
-import com.signify.app.di.SignifyViewModelFactory
-import com.signify.app.translator.viewmodel.TranslatorViewModel
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun TranslatorScreen(
-    container: AppContainer
-) {
-    // 1) Create ViewModel via Factory
-    val factory = remember {
-        SignifyViewModelFactory(
-            container.lessonRepository,
-            container.historyRepository,
-            container.translatorRepository
-        )
-    }
-    val vm: TranslatorViewModel = viewModel(factory = factory)
-
-    // 2) Collect result StateFlow
-    val result by vm.translationResult.collectAsState(initial = "")
-
-    // 3) Tab definitions
+fun TranslatorScreen(container: AppContainer) {
     val modes = listOf(
         Mode.SignToText   to "Sign → Text",
         Mode.SpeechToSign to "Speech → Sign",
@@ -38,7 +20,6 @@ fun TranslatorScreen(
     var selectedTab by remember { mutableStateOf(0) }
 
     Column(Modifier.fillMaxSize()) {
-        // Tab headers
         TabRow(
             selectedTabIndex = selectedTab,
             containerColor   = MaterialTheme.colorScheme.surface,
@@ -52,41 +33,16 @@ fun TranslatorScreen(
                 )
             }
         }
-
-        // Pane container
         Box(
             Modifier
                 .weight(1f)
                 .fillMaxWidth()
         ) {
             when (modes[selectedTab].first) {
-                Mode.SignToText ->
-                    SignToTextPane(
-                        container = container,
-                        modifier = Modifier.fillMaxSize()
-                    )
-                Mode.SpeechToSign ->
-                    SpeechToSignPane(
-                        container = container,
-                        modifier = Modifier.fillMaxSize()
-                    )
-                Mode.TextToSign ->
-                    TextToSignPane(
-                        container = container,
-                        modifier = Modifier.fillMaxSize()
-                    )
+                Mode.SignToText   -> SignToTextPane(container, Modifier.fillMaxSize())
+                Mode.SpeechToSign -> SpeechToSignPane(container, Modifier.fillMaxSize())
+                Mode.TextToSign   -> TextToSignPane(container, Modifier.fillMaxSize())
             }
-        }
-
-        // (Optional) Show last translation result
-        if (result.isNotEmpty()) {
-            Text(
-                text = result,
-                style = MaterialTheme.typography.bodyLarge,
-                modifier = Modifier
-                    .padding(16.dp)
-                    .fillMaxWidth()
-            )
         }
     }
 }

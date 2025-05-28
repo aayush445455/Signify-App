@@ -1,18 +1,15 @@
+// File: app/src/main/java/com/signify/app/di/AppContainer.kt
 package com.signify.app.di
 
 import android.content.Context
 import androidx.room.Room
+import com.google.firebase.auth.FirebaseAuth
+import com.signify.app.auth.repository.AuthRepository
+import com.signify.app.auth.repository.FirebaseAuthRepository
 import com.signify.app.data.local.AppDatabase
-import com.signify.app.data.local.LessonEntity
 import com.signify.app.data.repository.*
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.flow.first
-import kotlinx.coroutines.launch
-
 
 class AppContainer(context: Context) {
-    // 1) Build the Room database (with destructive fallback for now)
     private val db = Room.databaseBuilder(
         context.applicationContext,
         AppDatabase::class.java,
@@ -21,17 +18,18 @@ class AppContainer(context: Context) {
         .fallbackToDestructiveMigration()
         .build()
 
-    // 2) Grab your DAOs
-    private val lessonDao  = db.lessonDao()
-    private val historyDao = db.historyDao()
+    val lessonRepository     : LessonRepository     = LessonRepositoryImpl(db.lessonDao())
+    val historyRepository    : HistoryRepository    = HistoryRepositoryImpl(db.historyDao())
+    val translatorRepository : TranslatorRepository = TranslatorRepositoryImpl()
 
-    // 3) Instantiate your repositories
-    val lessonRepository     = LessonRepositoryImpl(lessonDao)
-    val historyRepository    = HistoryRepositoryImpl(historyDao)
-    val translatorRepository = TranslatorRepositoryImpl()
+    private val firebaseAuth = FirebaseAuth.getInstance()
+    val authRepository       : AuthRepository       = FirebaseAuthRepository(firebaseAuth)
 
-    // In AppContainer.kt, right after you construct your repositories:
-
-
-
+    // one factory for _all_ your ViewModels
+    val viewModelFactory = SignifyViewModelFactory(
+        authRepository,
+        lessonRepository,
+        historyRepository,
+        translatorRepository
+    )
 }

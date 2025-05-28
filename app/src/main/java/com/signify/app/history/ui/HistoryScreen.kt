@@ -8,47 +8,28 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
-import androidx.compose.ui.Alignment
-import androidx.compose.ui.Modifier
+import androidx.compose.ui.*
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.signify.app.di.AppContainer
-import com.signify.app.di.SignifyViewModelFactory
 import com.signify.app.history.viewmodel.HistoryViewModel
-import com.signify.app.ui.theme.Cream
-import com.signify.app.ui.theme.Navy
-import com.signify.app.ui.theme.NavyVariant
+import com.signify.app.ui.theme.*
 import java.text.SimpleDateFormat
 import java.util.*
-
-data class HistoryEntryUI(
-    val input: String,
-    val output: String,
-    val timestamp: String
-)
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun HistoryScreen(container: AppContainer) {
-    // 1) ViewModel
-    val factory = remember {
-        SignifyViewModelFactory(
-            container.lessonRepository,
-            container.historyRepository,
-            container.translatorRepository
-        )
-    }
-    val vm: HistoryViewModel = viewModel(factory = factory)
-
-    // 2) Collect and map
+    val vm: HistoryViewModel = viewModel(factory = container.viewModelFactory)
     val domainHistory by vm.history.collectAsState(initial = emptyList())
+
     val formatter = remember { SimpleDateFormat("yyyy-MM-dd HH:mm", Locale.getDefault()) }
-    val entries = domainHistory.map { h ->
+    val entries = domainHistory.map {
         HistoryEntryUI(
-            input     = h.inputText,
-            output    = h.outputText,
-            timestamp = formatter.format(Date(h.timestamp))
+            input     = it.inputText,
+            output    = it.outputText,
+            timestamp = formatter.format(Date(it.timestamp))
         )
     }
 
@@ -58,11 +39,10 @@ fun HistoryScreen(container: AppContainer) {
                 it.output.contains(filter, ignoreCase = true)
     }
 
-    // 3) UI
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("History", color = Cream) },
+                title  = { Text("History", color = Cream) },
                 colors = TopAppBarDefaults.topAppBarColors(containerColor = Navy)
             )
         },
@@ -86,12 +66,8 @@ fun HistoryScreen(container: AppContainer) {
                 textStyle = LocalTextStyle.current.copy(color = Cream)
             )
             Spacer(Modifier.height(16.dp))
-
             if (filtered.isEmpty()) {
-                Box(
-                    Modifier.fillMaxSize(),
-                    contentAlignment = Alignment.Center
-                ) {
+                Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                     Text("No entries found", color = Cream)
                 }
             } else {
@@ -108,14 +84,18 @@ fun HistoryScreen(container: AppContainer) {
                         ) {
                             Column(Modifier.padding(12.dp)) {
                                 Text(
-                                    text = entry.timestamp,
+                                    entry.timestamp,
                                     style = MaterialTheme.typography.bodySmall.copy(fontWeight = FontWeight.Light),
                                     color = Cream.copy(alpha = 0.7f)
                                 )
                                 Spacer(Modifier.height(4.dp))
-                                Text("In: ${entry.input}", style = MaterialTheme.typography.bodyLarge, color = Cream)
+                                Text("In: ${entry.input}",
+                                    style = MaterialTheme.typography.bodyLarge,
+                                    color = Cream)
                                 Spacer(Modifier.height(2.dp))
-                                Text("Out: ${entry.output}", style = MaterialTheme.typography.bodyLarge, color = Cream)
+                                Text("Out: ${entry.output}",
+                                    style = MaterialTheme.typography.bodyLarge,
+                                    color = Cream)
                             }
                         }
                     }
@@ -124,3 +104,9 @@ fun HistoryScreen(container: AppContainer) {
         }
     }
 }
+
+data class HistoryEntryUI(
+    val input: String,
+    val output: String,
+    val timestamp: String
+)
