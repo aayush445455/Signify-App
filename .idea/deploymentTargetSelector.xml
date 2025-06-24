@@ -4,10 +4,10 @@
     <selectionStates>
       <SelectionState runConfigName="Signify.app">
         <option name="selectionMode" value="DROPDOWN" />
-        <DropdownSelection timestamp="2025-05-28T03:49:02.192306600Z">
+        <DropdownSelection timestamp="2025-06-24T19:32:54.756058300Z">
           <Target type="DEFAULT_BOOT">
             <handle>
-              <DeviceId pluginId="LocalEmulator" identifier="path=C:\Users\lenovo\.android\avd\Pixel_9_Pro.avd" />
+              <DeviceId pluginId="PhysicalDevice" identifier="serial=51a06fb" />
             </handle>
           </Target>
         </DropdownSelection>

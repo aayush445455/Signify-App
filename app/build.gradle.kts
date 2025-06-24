@@ -1,3 +1,5 @@
+import com.android.build.api.dsl.AaptOptions
+
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.android)
@@ -21,6 +23,10 @@ android {
         versionName = "1.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
+    }
+    androidResources {
+        // keep your .tflite and .task files uncompressed
+        noCompress += listOf("tflite", "task")
     }
 
     buildTypes {
@@ -67,7 +73,7 @@ dependencies {
     implementation(libs.material3)
 
 
-// room +ksp
+// room +ks
     implementation(libs.androidx.room.runtime)
     implementation(libs.androidx.room.ktx)
     ksp(libs.androidx.room.compiler)
@@ -89,6 +95,12 @@ dependencies {
 
     // your Coroutines Play Services helper
     implementation(libs.coroutines.play.services)
+// TensorFlow Lite interpreter
+    implementation(libs.tensorflow.lite)
+
+    // MediaPipe Tasks Vision (Hand Landmarker)
+    implementation(libs.mediapipe.tasks.vision)
+    implementation(libs.mediapipe.tasks.core)
 
 // Optional: ML Kit or MediaPipe later (not now)
 

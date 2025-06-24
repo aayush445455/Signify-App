@@ -17,7 +17,8 @@ roomRuntime = "2.7.1"
 google-services = "4.4.2"
 firebase-bom       = "32.2.2"
 coroutines-play-services = "1.7.3"
-
+tflite      = "2.13.0"
+mediapipe   = "0.10.20"
 
 
 
@@ -57,6 +58,13 @@ firebase-auth-ktx       = { module = "com.google.firebase:firebase-auth-ktx" }
 firebase-firestore-ktx  = { module = "com.google.firebase:firebase-firestore-ktx" }
 
 coroutines-play-services = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-play-services", version.ref = "coroutines-play-services" }
+
+#mediapipe and tensorflow
+tensorflow-lite         = { module = "org.tensorflow:tensorflow-lite", version.ref = "tflite" }
+mediapipe-tasks-vision  = { module = "com.google.mediapipe:tasks-vision", version.ref = "mediapipe" }
+mediapipe-tasks-core = { module = "com.google.mediapipe:tasks-core", version.ref = "mediapipe" }
+
+
 [plugins]
 android-application = { id = "com.android.application", version.ref = "agp" }
 kotlin-android = { id = "org.jetbrains.kotlin.android", version.ref = "kotlin" }
