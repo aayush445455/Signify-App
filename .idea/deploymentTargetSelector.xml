@@ -4,7 +4,7 @@
     <selectionStates>
       <SelectionState runConfigName="Signify.app">
         <option name="selectionMode" value="DROPDOWN" />
-        <DropdownSelection timestamp="2025-06-24T19:32:54.756058300Z">
+        <DropdownSelection timestamp="2025-06-24T21:14:24.478040500Z">
           <Target type="DEFAULT_BOOT">
             <handle>
               <DeviceId pluginId="PhysicalDevice" identifier="serial=51a06fb" />
