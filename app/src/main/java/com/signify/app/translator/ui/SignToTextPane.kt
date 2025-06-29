@@ -232,7 +232,7 @@ fun SignToTextPane(
             contentAlignment = Alignment.Center
         ) {
             Text(
-                text = result.ifEmpty { "Detected text will appear here" },
+                text = result.ifEmpty { "Result" },
                 style = MaterialTheme.typography.displayLarge.copy(
                     color = MaterialTheme.colorScheme.onPrimaryContainer,
                     fontSize = 56.sp
