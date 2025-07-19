@@ -102,6 +102,7 @@ dependencies {
     implementation(libs.mediapipe.tasks.vision)
     implementation(libs.mediapipe.tasks.core)
 
-// Optional: ML Kit or MediaPipe later (not now)
+    implementation("org.tensorflow:tensorflow-lite-select-tf-ops:2.13.0")
 
 }
+

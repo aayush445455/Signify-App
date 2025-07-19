@@ -1,4 +1,3 @@
-// File: app/src/main/java/com/signify/app/translator/ui/SignToTextPane.kt
 package com.signify.app.translator.ui
 
 import android.Manifest
@@ -35,14 +34,15 @@ import androidx.core.content.ContextCompat
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.google.mediapipe.framework.image.BitmapImageBuilder
 import com.google.mediapipe.tasks.components.containers.NormalizedLandmark
-import com.google.mediapipe.tasks.core.BaseOptions
 import com.google.mediapipe.tasks.vision.core.RunningMode
 import com.google.mediapipe.tasks.vision.handlandmarker.*
 import com.google.mediapipe.tasks.vision.handlandmarker.HandLandmarker.HandLandmarkerOptions
+import com.google.mediapipe.tasks.vision.holisticlandmarker.HolisticLandmarker
+import com.google.mediapipe.tasks.vision.holisticlandmarker.HolisticLandmarkerResult
 import com.signify.app.di.AppContainer
 import com.signify.app.translator.asl.ASLInterpreter
-import com.signify.app.translator.asl.FeatureExtractor
 import com.signify.app.translator.viewmodel.TranslatorViewModel
+import com.signify.app.translator.asl.*
 import com.signify.app.utils.toBitmap
 import java.util.concurrent.Executors
 
@@ -51,17 +51,21 @@ fun SignToTextPane(
     container: AppContainer,
     modifier: Modifier = Modifier
 ) {
-    // 1) ViewModel & latest result
     val vm: TranslatorViewModel = viewModel(factory = container.viewModelFactory)
     val result by vm.translationResult.collectAsState(initial = "")
 
-    // 2) Landmarks for overlay
-    var landmarks by remember { mutableStateOf<List<NormalizedLandmark>>(emptyList()) }
+    // For static overlay
+    var staticHandLandmarks by remember { mutableStateOf<List<NormalizedLandmark>>(emptyList()) }
+    // For dynamic overlay (left hand, right hand, pose)
+    var leftHandLandmarks by remember { mutableStateOf<List<NormalizedLandmark>>(emptyList()) }
+    var rightHandLandmarks by remember { mutableStateOf<List<NormalizedLandmark>>(emptyList()) }
+    var poseOverlayLandmarks by remember { mutableStateOf<List<NormalizedLandmark>>(emptyList()) }
+    // For instant dynamic prediction
+    var dynamicResult by remember { mutableStateOf("") }
 
     val context = LocalContext.current
     val lifecycleOwner = LocalLifecycleOwner.current
 
-    // 3) Camera permission
     var hasCamPerm by remember {
         mutableStateOf(
             ContextCompat.checkSelfPermission(context, Manifest.permission.CAMERA)
@@ -75,40 +79,42 @@ fun SignToTextPane(
         if (!hasCamPerm) permLauncher.launch(Manifest.permission.CAMERA)
     }
 
-    // 4) Toggles
     var detecting by remember { mutableStateOf(false) }
     var useFrontCamera by remember { mutableStateOf(false) }
+    var useDynamicModel by remember { mutableStateOf(false) }
     val cameraSelector = if (useFrontCamera)
         CameraSelector.DEFAULT_FRONT_CAMERA
     else
         CameraSelector.DEFAULT_BACK_CAMERA
 
-    // 5) ASL model + MediaPipe hand landmarker
-    val aslInterpreter = remember { ASLInterpreter(context) }
+    val staticInterpreter = remember { ASLInterpreter(context) }
+    val staticLabels = (0..9).map { it.toString() } + ('A'..'Z').map { it.toString() }
+    val dynamicInterpreter = remember { DynamicASLInterpreter(context) }
+
+    // ------ 1. HandLandmarker (STATIC) ------
     val handLandmarker = remember {
         HandLandmarker.createFromOptions(
             context,
             HandLandmarkerOptions.builder()
                 .setBaseOptions(
-                    BaseOptions.builder()
+                    com.google.mediapipe.tasks.core.BaseOptions.builder()
                         .setModelAssetPath("hand_landmarker.task")
                         .build()
                 )
-                .setNumHands(1)
+                .setNumHands(2)
                 .setRunningMode(RunningMode.LIVE_STREAM)
                 .setResultListener { res: HandLandmarkerResult, _ ->
-                    val all = res.landmarks()
-                    if (all.isNotEmpty()) {
-                        landmarks = all[0]
-                        // extract → predict
-                        val features = FeatureExtractor.extractFeatures(landmarks)
-                        val idx = aslInterpreter.predict(features)
-                        val labels = (0..9).map { it.toString() } +
-                                ('A'..'Z').map { it.toString() }
-                        val letter = labels.getOrNull(idx) ?: "?"
-                        vm.translateSignCodes(listOf(letter))
-                    } else {
-                        landmarks = emptyList()
+                    if (!useDynamicModel) {
+                        val all = res.landmarks()
+                        if (all.isNotEmpty()) {
+                            staticHandLandmarks = all[0]
+                            val features = FeatureExtractor.extractFeatures(all[0])
+                            val idx = staticInterpreter.predict(features)
+                            val letter = staticLabels.getOrNull(idx) ?: "?"
+                            vm.translateSignCodes(listOf(letter))
+                        } else {
+                            staticHandLandmarks = emptyList()
+                        }
                     }
                 }
                 .setErrorListener { it.printStackTrace() }
@@ -116,12 +122,59 @@ fun SignToTextPane(
         )
     }
 
-    // 6) CameraX preview + analyzer
+    // ------ 2. HolisticLandmarker (DYNAMIC) ------
+    val holisticLandmarker = remember {
+        HolisticLandmarker.createFromOptions(
+            context,
+            HolisticLandmarker.HolisticLandmarkerOptions.builder()
+                .setBaseOptions(
+                    com.google.mediapipe.tasks.core.BaseOptions.builder()
+                        .setModelAssetPath("holistic_landmarker.task")
+                        .build()
+                )
+                .setRunningMode(RunningMode.LIVE_STREAM)
+                .setResultListener { res: HolisticLandmarkerResult, _ ->
+                    if (useDynamicModel) {
+                        val leftHand = res.leftHandLandmarks()
+                        val rightHand = res.rightHandLandmarks()
+                        val poseLandmarks = res.poseLandmarks()
+
+                        // For overlays:
+                        leftHandLandmarks = leftHand ?: emptyList()
+                        rightHandLandmarks = rightHand ?: emptyList()
+                        poseOverlayLandmarks = poseLandmarks ?: emptyList()
+
+                        // For dynamic model: only commit if valid
+                        val pose4 = listOf(
+                            poseLandmarks.getOrNull(11),
+                            poseLandmarks.getOrNull(12),
+                            poseLandmarks.getOrNull(13),
+                            poseLandmarks.getOrNull(14)
+                        ).filterNotNull()
+                        if (leftHand != null && rightHand != null && pose4.size == 4) {
+                            val frame = flattenHolisticLandmarks(leftHand, rightHand, pose4)
+                            dynamicInterpreter.processFrameRaw(frame) { label ->
+                                if (label.isNotBlank() && label != "?") {
+                                    if (label != dynamicResult) {
+                                        dynamicResult = label
+                                    }
+                                }
+                                vm.translateSignCodes(listOf(label))
+                            }
+                        }
+                    }
+                }
+                .setErrorListener { it.printStackTrace() }
+                .build()
+        )
+    }
+
+    // ------ 3. CameraX setup ------
     val previewView = remember { PreviewView(context) }
     val cameraProviderFuture = remember { ProcessCameraProvider.getInstance(context) }
     val executor = remember { Executors.newSingleThreadExecutor() }
 
-    LaunchedEffect(hasCamPerm, detecting, useFrontCamera) {
+    LaunchedEffect(hasCamPerm, detecting, useFrontCamera, useDynamicModel) {
         if (!hasCamPerm) return@LaunchedEffect
         val provider = cameraProviderFuture.get()
         provider.unbindAll()
@@ -146,7 +199,11 @@ fun SignToTextPane(
                                 bmp, 0, 0, bmp.width, bmp.height, matrix, false
                             )
                             val mpImg = BitmapImageBuilder(framed).build()
-                            handLandmarker.detectAsync(mpImg, img.imageInfo.timestamp)
+                            if (useDynamicModel) {
+                                holisticLandmarker.detectAsync(mpImg, img.imageInfo.timestamp)
+                            } else {
+                                handLandmarker.detectAsync(mpImg, img.imageInfo.timestamp)
+                            }
                         } catch (e: Exception) {
                             Log.e("SignToTextPane", "analysis failed", e)
                         } finally {
@@ -164,9 +221,8 @@ fun SignToTextPane(
         }
     }
 
-    // 7) UI
+    // ------ 4. UI ------
     Column(modifier = modifier.padding(16.dp)) {
-        // camera + skeleton overlay
         Box(
             Modifier
                 .fillMaxWidth()
@@ -177,28 +233,102 @@ fun SignToTextPane(
                 Canvas(Modifier.matchParentSize()) {
                     val w = size.width
                     val h = size.height
-                    val bones = listOf(
-                        0 to 1,1 to 2,2 to 3,3 to 4,
-                        0 to 5,5 to 6,6 to 7,7 to 8,
-                        0 to 9,9 to 10,10 to 11,11 to 12,
-                        0 to 13,13 to 14,14 to 15,15 to 16,
-                        0 to 17,17 to 18,18 to 19,19 to 20
-                    )
-                    bones.forEach { (a, b) ->
-                        landmarks.getOrNull(a)?.let { p1 ->
-                            landmarks.getOrNull(b)?.let { p2 ->
-                                drawLine(
-                                    Color.Green,
-                                    Offset(p1.x()*w, p1.y()*h),
-                                    Offset(p2.x()*w, p2.y()*h),
-                                    strokeWidth = 4f
-                                )
+
+                    if (useDynamicModel) {
+                        // ---- Hands (draw just like before) ----
+                        val bones = listOf(
+                            0 to 1,1 to 2,2 to 3,3 to 4,
+                            0 to 5,5 to 6,6 to 7,7 to 8,
+                            0 to 9,9 to 10,10 to 11,11 to 12,
+                            0 to 13,13 to 14,14 to 15,15 to 16,
+                            0 to 17,17 to 18,18 to 19,19 to 20
+                        )
+                        listOf(leftHandLandmarks, rightHandLandmarks).forEach { hand ->
+                            bones.forEach { (a, b) ->
+                                hand.getOrNull(a)?.let { p1 ->
+                                    hand.getOrNull(b)?.let { p2 ->
+                                        drawLine(
+                                            Color.Green,
+                                            Offset(p1.x() * w, p1.y() * h),
+                                            Offset(p2.x() * w, p2.y() * h),
+                                            strokeWidth = 4f
+                                        )
+                                    }
+                                }
+                            }
+                            hand.forEach {
+                                drawCircle(Color.Green, radius = 6f,
+                                    center = Offset(it.x() * w, it.y() * h))
                             }
                         }
-                    }
-                    landmarks.forEach {
-                        drawCircle(Color.Green, radius = 6f,
-                            center = Offset(it.x()*w, it.y()*h))
+                        // Pose indices: 11 = left_shoulder, 12 = right_shoulder, 13 = left_elbow, 14 = right_elbow
+                        val lShoulder = poseOverlayLandmarks.getOrNull(11)
+                        val rShoulder = poseOverlayLandmarks.getOrNull(12)
+                        val lElbow = poseOverlayLandmarks.getOrNull(13)
+                        val rElbow = poseOverlayLandmarks.getOrNull(14)
+
+// Draw shoulder to shoulder (top of skeleton)
+                        if (lShoulder != null && rShoulder != null) {
+                            drawLine(
+                                Color.Blue,
+                                Offset(lShoulder.x() * w, lShoulder.y() * h),
+                                Offset(rShoulder.x() * w, rShoulder.y() * h),
+                                strokeWidth = 5f
+                            )
+                        }
+
+// Left arm (shoulder to elbow)
+                        if (lShoulder != null && lElbow != null) {
+                            drawLine(
+                                Color.Blue,
+                                Offset(lShoulder.x() * w, lShoulder.y() * h),
+                                Offset(lElbow.x() * w, lElbow.y() * h),
+                                strokeWidth = 5f
+                            )
+                        }
+
+// Right arm (shoulder to elbow)
+                        if (rShoulder != null && rElbow != null) {
+                            drawLine(
+                                Color.Blue,
+                                Offset(rShoulder.x() * w, rShoulder.y() * h),
+                                Offset(rElbow.x() * w, rElbow.y() * h),
+                                strokeWidth = 5f
+                            )
+                        }
+
+// Draw circles for joints
+                        listOf(lShoulder, rShoulder, lElbow, rElbow).forEach { p ->
+                            p?.let {
+                                drawCircle(Color.Red, radius = 10f, center = Offset(it.x() * w, it.y() * h))
+                            }
+                        }
+
+                    } else {
+                        // Draw single hand (static)
+                        val bones = listOf(
+                            0 to 1,1 to 2,2 to 3,3 to 4,
+                            0 to 5,5 to 6,6 to 7,7 to 8,
+                            0 to 9,9 to 10,10 to 11,11 to 12,
+                            0 to 13,13 to 14,14 to 15,15 to 16,
+                            0 to 17,17 to 18,18 to 19,19 to 20
+                        )
+                        bones.forEach { (a, b) ->
+                            staticHandLandmarks.getOrNull(a)?.let { p1 ->
+                                staticHandLandmarks.getOrNull(b)?.let { p2 ->
+                                    drawLine(
+                                        Color.Green,
+                                        Offset(p1.x() * w, p1.y() * h),
+                                        Offset(p2.x() * w, p2.y() * h),
+                                        strokeWidth = 4f
+                                    )
+                                }
+                            }
+                        }
+                        staticHandLandmarks.forEach {
+                            drawCircle(Color.Green, radius = 6f,
+                                center = Offset(it.x() * w, it.y() * h))
+                        }
                     }
                 }
             } else {
@@ -206,10 +336,7 @@ fun SignToTextPane(
                     Modifier.align(Alignment.Center))
             }
         }
-
         Spacer(Modifier.height(12.dp))
-
-        // controls
         Row {
             Button(onClick = { detecting = !detecting }) {
                 Text(if (detecting) "Stop" else "Start")
@@ -218,11 +345,12 @@ fun SignToTextPane(
             Button(onClick = { useFrontCamera = !useFrontCamera }) {
                 Text(if (useFrontCamera) "Back Cam" else "Front Cam")
             }
+            Spacer(Modifier.width(8.dp))
+            Button(onClick = { useDynamicModel = !useDynamicModel }) {
+                Text(if (useDynamicModel) "Dynamic" else "Static")
+            }
         }
-
         Spacer(Modifier.height(16.dp))
-
-        // big single‐letter result styled to match your theme
         Box(
             Modifier
                 .fillMaxWidth()
@@ -232,7 +360,7 @@ fun SignToTextPane(
             contentAlignment = Alignment.Center
         ) {
             Text(
-                text = result.ifEmpty { "Result" },
+                text = if (useDynamicModel) dynamicResult.ifEmpty { "Result" } else result.ifEmpty { "Result" },
                 style = MaterialTheme.typography.displayLarge.copy(
                     color = MaterialTheme.colorScheme.onPrimaryContainer,
                     fontSize = 56.sp
