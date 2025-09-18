@@ -45,13 +45,4 @@ This project was developed using a dataset from Kaggle. We extend our sincere gr
 
 ## Authors
 
-This project was developed by a team from the Bachelor of Engineering in Computer program at Pokhara University, Madan Bhandari Memorial Academy, as a final project.
-
-**Project Team:**
-* Aawritti Paudyal
-* Aman Bhujel
-* Dependra Dhami
-* Aayush Raj Paudel
-* Binita Sangroula
-
 For any inquiries, you can contact the primary developer at [aayushrajpoudel@gmail.com](mailto:aayushrajpoudel@gmail.com).****
