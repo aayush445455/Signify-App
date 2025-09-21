@@ -1,6 +1,6 @@
 MIT License
 
-Copyright (c) 2024 Aayush Raj Paudel
+Copyright (c) 2025 Aayush Raj Paudel
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
